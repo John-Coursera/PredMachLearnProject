@@ -29,7 +29,7 @@ Here we import the data, split the given test set into our test and validation s
 
 In order to determine which variables to keep as predictors, we inspect the data.  Exploratory data analysis shows that there are several variables that are functions of the raw sensor input: for example, there is the raw sensor input of `yaw_belt`, and several variables calculated from it (min, max, skewness, kurtosis, and so on) only at certain intervals (those with a `new_window` value of `yes` instead of `no`).  
 
-Since these are functions of another variable, they should generally be omitted and furthermore they frequently `NA` (only have values at `new_window` rows, and notably these do not occur in the test data), so there is no value to include them as predictors.  
+Since these are functions of another variable, they should generally be omitted and furthermore they are frequently `NA` (only have values at `new_window` rows, and notably these do not occur in the test data), so there is no value to include them as predictors.  
 
 There are also variables that will not be useful in prediction barbell lift type: the row number, subject name, and time the activity was performed (including the `new_window` variable).  A final list of predictor variables was manually pre-selected with these points in mind, and is saved as `predictor.variables` here.
 
