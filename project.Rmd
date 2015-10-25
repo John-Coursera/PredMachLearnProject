@@ -1,0 +1,92 @@
+---
+title: "Practical Machine Learning Project"
+author: "John-Coursera"
+date: "October 25, 2015"
+output: html_document
+---
+
+<!--
+- create a report describing how you built your model
+- how you used cross validation
+- what you think the expected out of sample error is
+- why you made the choices you did
+- use your prediction model to predict 20 different test cases. 
+-->
+
+## Introduction
+
+We will use a set of Human Activity Recognition data, made available by [Groupware@LES](http://groupware.les.inf.puc-rio.br/har).  A summary of the project description is:
+
+> In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. [...] [P]redict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. [Describe] how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+The outcome variable, `classe` takes values A--E, which indicated the five different barbell lift types.
+
+Given the excellent performance of the random forest machine learning algorithm on a wide range of problems, we select it as our initial model for this problem, and will consider other models (such as boosting) if the performance is not acceptable.
+
+## Import data
+
+Here we import the data, split the given test set into our test and validation sets, subset to only the predictor and outcome variables, load packages that will be used, and set the random seed for reproducability.
+
+In order to determine which variables to keep as predictors, we inspect the data.  Exploratory data analysis shows that there are several variables that are functions of the raw sensor input: for example, there is the raw sensor input of `yaw_belt`, and several variables calculated from it (min, max, skewness, kurtosis, and so on) only at certain intervals (those with a `new_window` value of `yes` instead of `no`).  
+
+Since these are functions of another variable, they should generally be omitted and furthermore they frequently `NA` (only have values at `new_window` rows, and notably these do not occur in the test data), so there is no value to include them as predictors.  
+
+There are also variables that will not be useful in prediction barbell lift type: the row number, subject name, and time the activity was performed (including the `new_window` variable).  A final list of predictor variables was manually pre-selected with these points in mind, and is saved as `predictor.variables` here.
+
+```{r, echo=TRUE} 
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(randomForest)))
+set.seed(42)
+
+predictor.variables <- c("roll_belt", "pitch_belt", "yaw_belt", "total_accel_belt", "gyros_belt_x", "gyros_belt_y", "gyros_belt_z", "accel_belt_x", "accel_belt_y", "accel_belt_z", "magnet_belt_x", "magnet_belt_y", "magnet_belt_z", "roll_arm", "pitch_arm", "yaw_arm", "total_accel_arm", "gyros_arm_x", "gyros_arm_y", "gyros_arm_z", "accel_arm_x", "accel_arm_y", "accel_arm_z", "magnet_arm_x", "magnet_arm_y", "magnet_arm_z", "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell", "gyros_dumbbell_x", "gyros_dumbbell_y", "gyros_dumbbell_z", "accel_dumbbell_x", "accel_dumbbell_y", "accel_dumbbell_z", "magnet_dumbbell_x", "magnet_dumbbell_y", "magnet_dumbbell_z", "roll_forearm", "pitch_forearm", "yaw_forearm", "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z", "accel_forearm_x", "accel_forearm_y", "accel_forearm_z", "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z")
+
+pml.train.full <- read.csv("pml-training.csv")
+pml.test.full <- read.csv("pml-testing.csv")
+
+pml.train.all <- subset(pml.train.full, select=c(predictor.variables, "classe"))
+inTrain <- createDataPartition(y = pml.train.all$classe, p=0.7, list=F)
+
+# our training set
+pml.train <- pml.train.all[inTrain,] 
+
+# our validation set
+pml.validate <- pml.train.all[-inTrain,]
+
+# final test set (the 20 predictions for assignment turn-in)
+pml.test <- subset(pml.test.full, select=predictor.variables)
+```
+
+Note that we split the given training set into 70% training, `pml.train`, and 30% validation, `pml.validate`.  The true test set, which we don't know the outcomes for, is stored in `pml.test`.
+
+## Train model
+
+We fit a random forest using the default parameters on the training set, `pml.train`.
+
+```{r, echo=TRUE}
+rf.fit <- randomForest(classe ~ ., data=pml.train)
+print(rf.fit)
+```
+
+From the summary of the fit, we estimate the out-of-sample error to be 0.52%.
+
+## Model evaluation
+
+Here we cross-validate the model against `pml.validate`.
+
+```{r, echo=TRUE}
+validation.result <- predict(rf.fit, pml.validate)
+confusionMatrix(validation.result, pml.validate$classe)
+```
+
+We see in the output of the confusion matrix that against this validation set, the model has an accuracy 99.54% accuracy.  Therefore this particular set has an error rate of 0.46%, compared to the estimate of 0.52%.
+
+Given the excellent performance of this model, we select it as our final model for this data set.  We do not use principal component analysis or some other pre-processing method in the generation of the model since we achieve excellent performance without preprocessing, and preprocessing lowers the interpretability of the model.
+
+## Predict
+
+Finally, we use our model to predict the outcomes for the assignment submission.  These outcomes score 20/20 in the data submission part of the project, which was anticipated given the estimated and observed error terms.
+
+```{r, echo=TRUE}
+predict(rf.fit, pml.test)
+```
+
